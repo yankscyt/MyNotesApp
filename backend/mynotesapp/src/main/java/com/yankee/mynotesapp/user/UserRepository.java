@@ -1,6 +1,6 @@
 // backend/mynotesapp/src/main/java/com/yankee/mynotesapp/user/UserRepository.java
 
-package main.java.com.yankee.mynotesapp.user;
+package com.yankee.mynotesapp.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;

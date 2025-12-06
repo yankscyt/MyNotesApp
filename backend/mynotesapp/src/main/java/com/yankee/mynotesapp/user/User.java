@@ -1,6 +1,6 @@
 // backend/mynotesapp/src/main/java/com/yankee/mynotesapp/user/User.java
 
-package main.java.com.yankee.mynotesapp.user;
+package com.yankee.mynotesapp.user;
 
 import jakarta.persistence.*;
 import lombok.Data;
