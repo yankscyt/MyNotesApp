@@ -1,0 +1,17 @@
+/* frontend/src/index.css */
+
+/* Tailwind Directives MUST be at the very top */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: You can add a simple default background and text color here
+   until you define your brand colors in tailwind.config.js
+*/
+body {
+    margin: 0;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    color: #213547; /* Dark text default */
+    background-color: #ffffff; /* Light background default */
+    min-height: 100vh;
+}

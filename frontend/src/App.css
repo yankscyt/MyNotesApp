@@ -1,0 +1,14 @@
+/* frontend/src/App.css (If it exists, otherwise delete it) */
+
+/* Do not add Tailwind directives here if they are already in index.css */
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* You would manage logo animations using Tailwind classes in the .jsx files now */
+
+/* Delete the rest of the old logo, card, and media queries */
