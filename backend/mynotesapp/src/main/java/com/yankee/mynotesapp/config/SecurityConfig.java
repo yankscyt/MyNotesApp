@@ -26,22 +26,25 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthFilter authFilter;
 
-    // Spring will automatically find the CustomUserDetailsService bean
     @Autowired
-    private UserDetailsService userDetailsService;
+    private UserDetailsService userDetailsService; // This line remains
 
-    // 1. Password Encoder Bean
+    // 1. Password Encoder Bean (Remains the same)
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // 2. Authentication Provider (FIXED: UserDetailsService passed directly to
-    // constructor)
+    // 2. Authentication Provider (FINAL FIX: Uses a standard setter pattern)
     @Bean
     public AuthenticationProvider authenticationProvider() {
+        // We use the no-arg constructor, and Spring will inject the dependency via the
+        // setter
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService); // Re-added setter for compatibility
+
+        // This is the correct setter call
+        authProvider.setUserDetailsService(userDetailsService);
+
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
