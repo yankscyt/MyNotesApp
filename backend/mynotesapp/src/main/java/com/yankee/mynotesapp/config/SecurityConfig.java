@@ -29,21 +29,19 @@ public class SecurityConfig {
     private JwtAuthFilter authFilter;
 
     @Autowired
-    private UserDetailsService userDetailsService; // Must be here
+    private UserDetailsService userDetailsService;
 
-    // 1. Password Encoder Bean (Remains the same)
+    // 1. Password Encoder Bean
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(); // Must return a NEW instance of BCrypt
     }
 
-    // 2. Authentication Provider (THE ONE THAT WORKS)
+    // 2. Authentication Provider (The one that uses the encoder)
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // Satisfy the compiler's requirement for a UserDetailsService in the
-        // constructor,
-        // and then set the PasswordEncoder.
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
+        // The method call below uses the bean defined above
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
@@ -65,8 +63,10 @@ public class SecurityConfig {
                                                                                                              // sessions
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints for authentication
+                        // CRITICAL: Public endpoints for authentication (Signup/Login)
+                        // This path MUST be the first rule and MUST use '/**'
                         .requestMatchers("/api/auth/**").permitAll()
+
                         // All other requests require authentication
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())

@@ -1,14 +1,13 @@
-// backend/mynotesapp/src/main/java/com/yankee/mynotesapp/user/UserRepository.java
-
 package com.yankee.mynotesapp.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
+import java.util.Optional; // Ensure this is imported
 
 public interface UserRepository extends JpaRepository<User, Long> {
-    // Custom method to find a user by username for login
+
+    // Existing: Used for login lookup
     Optional<User> findByUsername(String username);
 
-    // Custom method to check if a user exists by email for registration
-    boolean existsByEmail(String email);
+    // NEW: Add this missing method for signup validation
+    Boolean existsByEmail(String email);
 }
