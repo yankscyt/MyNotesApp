@@ -48,7 +48,7 @@ public class NoteController {
     // PUT /api/notes/{id} - Update an existing note
     @PutMapping("/{id}")
     public ResponseEntity<Note> updateNote(@PathVariable Long id, @RequestBody Note noteDetails) {
-        return noteRepository.findById(id).map(note -> {
+        return noteRepository.findById(id).<ResponseEntity<Note>>map(note -> {
             // Security check: ensure note belongs to the user
             if (!note.getUser().equals(getCurrentUser())) {
                 return ResponseEntity.status(403).build();
@@ -63,7 +63,7 @@ public class NoteController {
     // DELETE /api/notes/{id} - Delete a note
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteNote(@PathVariable Long id) {
-        return noteRepository.findById(id).map(note -> {
+        return noteRepository.findById(id).<ResponseEntity<Void>>map(note -> {
             // Security check: ensure note belongs to the user
             if (!note.getUser().equals(getCurrentUser())) {
                 return ResponseEntity.status(403).build();
