@@ -1,8 +1,10 @@
-// frontend/src/App.jsx (FULL REPLACEMENT - RESTORATION)
+// frontend/src/App.jsx (FULL REPLACEMENT with Wallet and Transaction Logic)
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { login, signup, logout, getNotes, createNote, updateNote, deleteNote } from "./api.js";
 import './index.css';
+import useWallet from './useWallet.jsx';
+import { ethers } from 'ethers'; // For accessing ethers utility functions (like parseEther)
 
 // --- Components ---
 
@@ -134,6 +136,17 @@ const NotesDashboard = ({ setIsAuthenticated }) => {
     const [currentNote, setCurrentNote] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [txStatus, setTxStatus] = useState(null); // NEW: State for transaction status
+
+    // Wallet integration hook
+    const { 
+        walletAddress, 
+        isConnected, 
+        connectWallet, 
+        disconnectWallet,
+        error: walletError,
+        signer // CRITICAL: Get the signer object for transactions
+    } = useWallet();
 
     const fetchNotes = async () => {
         setLoading(true);
@@ -183,27 +196,115 @@ const NotesDashboard = ({ setIsAuthenticated }) => {
     const handleLogout = () => {
         logout();
         setIsAuthenticated(false);
+        // Optional: Disconnect wallet on app logout
+        disconnectWallet(); 
     };
+
+    // NEW FUNCTION: Handles sending the transaction proof
+    const sendProofTransaction = async () => {
+        if (!isConnected || !signer) {
+            setTxStatus({ message: "Please connect your MetaMask wallet first.", type: 'error' });
+            return;
+        }
+
+        setTxStatus({ message: "Awaiting transaction confirmation in MetaMask...", type: 'pending' });
+
+        try {
+            // Amount to send (e.g., 0.00000001 ETH - very small amount for testing)
+            const amount = ethers.parseEther("0.00000001"); 
+            
+            // Transaction object: sending the amount to your own address (UTXO proof)
+            const tx = await signer.sendTransaction({
+                to: walletAddress, // Sending the UTXO to yourself
+                value: amount,
+            });
+
+            setTxStatus({ message: "Transaction submitted. Awaiting block confirmation...", type: 'pending' });
+            
+            // Wait for the transaction to be mined
+            const receipt = await tx.wait(); 
+
+            if (receipt.status === 1) {
+                setTxStatus({ 
+                    message: `Transaction successful! TX Hash: ${receipt.hash.substring(0, 10)}...`, 
+                    type: 'success',
+                    hash: receipt.hash
+                });
+                // Screenshot should be taken here!
+            } else {
+                setTxStatus({ message: "Transaction failed (Status 0).", type: 'error' });
+            }
+
+        } catch (error) {
+            console.error("Transaction Error:", error);
+            // Handle user rejecting transaction
+            const errorMessage = error.code === 4001 ? "Transaction rejected by user." : `Transaction failed: ${error.message || 'Check console.'}`;
+            setTxStatus({ message: errorMessage, type: 'error' });
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <header className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-extrabold text-indigo-700">My Notes App</h1>
-                <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition duration-200"
-                >
-                    Logout
-                </button>
+                <div className="flex space-x-4 items-center">
+                    
+                    {/* ⬅️ NEW BUTTON: Transaction Proof */}
+                    <button
+                        onClick={sendProofTransaction}
+                        disabled={!isConnected}
+                        className="px-4 py-2 text-white font-semibold rounded-lg transition duration-200 bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+                    >
+                        Send UTXO Proof (0.0...1 ETH)
+                    </button>
+                    
+                    {/* -------------------- WALLET DISPLAY & BUTTONS -------------------- */}
+                    <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            isConnected ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                            {isConnected ? `Connected: ${walletAddress.substring(0, 6)}...` : 'Wallet Disconnected'}
+                        </span>
+                        <button
+                            onClick={isConnected ? disconnectWallet : connectWallet}
+                            className={`px-4 py-2 text-white font-semibold rounded-lg transition duration-200 ${
+                                isConnected ? 'bg-gray-600 hover:bg-gray-700' : 'bg-purple-600 hover:bg-purple-700'
+                            }`}
+                        >
+                            {isConnected ? 'Disconnect Wallet' : 'Connect Wallet'}
+                        </button>
+                    </div>
+                    {/* -------------------- LOGOUT BUTTON -------------------- */}
+                    <button
+                        onClick={handleLogout}
+                        className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition duration-200"
+                    >
+                        Logout
+                    </button>
+                </div>
             </header>
+
+            {/* ⬅️ NEW: Transaction Status Display */}
+            {(txStatus || walletError) && (
+                <div className={`p-4 mb-4 text-sm rounded-lg ${
+                    txStatus?.type === 'success' ? 'bg-green-100 text-green-800' : 
+                    txStatus?.type === 'error' || walletError ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                    {walletError || txStatus?.message}
+                    {txStatus?.hash && (
+                        <p className="mt-1 font-mono text-xs">Hash: {txStatus.hash}</p>
+                    )}
+                </div>
+            )}
+            
+            {error && <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">{error}</div>}
 
             <NoteEditor 
                 currentNote={currentNote} 
                 setCurrentNote={setCurrentNote} 
                 onSave={handleSave} 
             />
-
-            {error && <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">{error}</div>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {loading ? (
