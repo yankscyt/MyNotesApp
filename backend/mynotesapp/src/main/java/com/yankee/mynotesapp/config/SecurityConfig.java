@@ -19,6 +19,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import com.yankee.mynotesapp.config.JwtAuthFilter;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -27,7 +29,7 @@ public class SecurityConfig {
     private JwtAuthFilter authFilter;
 
     @Autowired
-    private UserDetailsService userDetailsService; // This line remains
+    private UserDetailsService userDetailsService; // Must be here
 
     // 1. Password Encoder Bean (Remains the same)
     @Bean
@@ -35,21 +37,18 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // 2. Authentication Provider (FINAL FIX: Uses a standard setter pattern)
+    // 2. Authentication Provider (THE ONE THAT WORKS)
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // We use the no-arg constructor, and Spring will inject the dependency via the
-        // setter
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-
-        // This is the correct setter call
-        authProvider.setUserDetailsService(userDetailsService);
-
+        // Satisfy the compiler's requirement for a UserDetailsService in the
+        // constructor,
+        // and then set the PasswordEncoder.
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
 
-    // 3. Authentication Manager
+    // 3. Authentication Manager (Requires the provider)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
