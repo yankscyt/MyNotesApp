@@ -1,9 +1,10 @@
 /* frontend/src/index.css */
-
+@import 'react-quill/dist/quill.snow.css';
 /* Tailwind Directives MUST be at the very top */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 
 /* Optional: You can add a simple default background and text color here
    until you define your brand colors in tailwind.config.js
@@ -14,4 +15,14 @@ body {
     color: #213547; /* Dark text default */
     background-color: #ffffff; /* Light background default */
     min-height: 100vh;
+}
+
+body {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Base style for the body to respect Tailwind's dark class on the HTML element */
+/* This ensures the body's background changes when the 'dark' class is present */
+.dark body {
+    background-color: #181a1b; /* elphaba-dark */
 }

@@ -1,12 +1,15 @@
-// frontend/src/main.jsx (Ensure this file is correct)
+// frontend/src/main.jsx (COMPLETE CODE)
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx' // Make sure this line exists
+import App from './App.jsx'
 import './index.css'
+import { ThemeProvider } from './ThemeContext.jsx'; 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App /> {/* The App component must be rendered here */}
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </React.StrictMode>,
 )
