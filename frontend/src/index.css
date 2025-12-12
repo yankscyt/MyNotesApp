@@ -21,8 +21,28 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Base style for the body to respect Tailwind's dark class on the HTML element */
-/* This ensures the body's background changes when the 'dark' class is present */
 .dark body {
-    background-color: #181a1b; /* elphaba-dark */
+    background-color: #0f1412; /* Use the exact elphaba-dark color */
+}
+
+:root {
+    --font-primary: "Inter", system-ui, sans-serif;
+}
+
+body {
+    font-family: var(--font-primary);
+}
+
+h1, h2, h3 {
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease forwards;
 }
