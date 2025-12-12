@@ -1,5 +1,3 @@
-// backend/mynotesapp/src/main/java/com/yankee/mynotesapp/auth/AuthRequest.java
-
 package com.yankee.mynotesapp.auth;
 
 import lombok.Data;
@@ -10,8 +8,14 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthRequest {
-    // Only these three fields are needed for registration/login DTO
+
+    // Frontend sends:
+    // username (email) and password
     private String username;
     private String password;
-    private String email;
+
+    // Helper: treat username as email for consistency
+    public String getEmail() {
+        return this.username;
+    }
 }

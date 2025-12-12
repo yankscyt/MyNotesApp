@@ -1,84 +1,99 @@
-// frontend/src/useWallet.jsx
+import { useState } from "react";
+import { linkWalletAddress } from "./api"; // your API file
 
-import { useState, useEffect, useCallback } from 'react';
-import { ethers } from 'ethers';
+export default function useWallet() {
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-const useWallet = () => {
-    const [provider, setProvider] = useState(null);
-    const [signer, setSigner] = useState(null);
-    const [walletAddress, setWalletAddress] = useState(null);
-    const [isConnected, setIsConnected] = useState(false);
-    const [error, setError] = useState(null);
+  // -----------------------------
+  //  CONNECT CARDANO (Nami / Eternl / Lace)
+  // -----------------------------
+  const connectCardano = async () => {
+    setLoading(true);
+    setError(null);
 
-    // 1. Connect function
-    const connectWallet = useCallback(async () => {
-        setError(null);
-        if (window.ethereum) {
-            try {
-                // Request account access
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const currentProvider = new ethers.BrowserProvider(window.ethereum);
-                const currentSigner = await currentProvider.getSigner();
-                
-                setProvider(currentProvider);
-                setSigner(currentSigner);
-                setWalletAddress(accounts[0]);
-                setIsConnected(true);
-            } catch (err) {
-                setError("Connection rejected by user or MetaMask is locked.");
-                setIsConnected(false);
-            }
-        } else {
-            setError("MetaMask not detected. Please install it.");
-            setIsConnected(false);
-        }
-    }, []);
+    try {
+      let wallet;
 
-    // 2. Disconnect function
-    const disconnectWallet = useCallback(() => {
-        setProvider(null);
-        setSigner(null);
-        setWalletAddress(null);
-        setIsConnected(false);
-        setError(null);
-    }, []);
+      if (window.cardano?.eternl) {
+        wallet = await window.cardano.eternl.enable();
+      } else if (window.cardano?.nami) {
+        wallet = await window.cardano.nami.enable();
+      } else if (window.cardano?.lace) {
+        wallet = await window.cardano.lace.enable();
+      } else {
+        setError("No Cardano wallet detected. Install Nami / Eternl / Lace.");
+        setLoading(false);
+        return;
+      }
 
-    // 3. Effect to handle account changes
-    useEffect(() => {
-        if (window.ethereum) {
-            const handleAccountsChanged = (accounts) => {
-                if (accounts.length > 0) {
-                    setWalletAddress(accounts[0]);
-                    setIsConnected(true);
-                } else {
-                    disconnectWallet();
-                }
-            };
-            
-            // Re-establish connection on load if already connected
-            window.ethereum.request({ method: 'eth_accounts' })
-                .then(handleAccountsChanged)
-                .catch(console.error);
+      const usedAddresses = await wallet.getUsedAddresses();
+      if (!usedAddresses || usedAddresses.length === 0) {
+        setError("Wallet connected, but no used addresses found.");
+        setLoading(false);
+        return;
+      }
 
-            // Set up event listener for account changes
-            window.ethereum.on('accountsChanged', handleAccountsChanged);
-            
-            // Clean up the event listener on component unmount
-            return () => {
-                window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-            };
-        }
-    }, [disconnectWallet]);
+      // Convert from CBOR → address
+      const addressHex = usedAddresses[0];
+      const address = window.cardano.getAddressFromHex
+        ? window.cardano.getAddressFromHex(addressHex)
+        : addressHex;
 
-    return {
-        provider,
-        signer,
-        walletAddress,
-        isConnected,
-        error,
-        connectWallet,
-        disconnectWallet,
-    };
-};
+      console.log("Cardano Wallet Address:", address);
+      setWalletAddress(address);
 
-export default useWallet;
+      // Save to backend
+      const res = await linkWalletAddress(address);
+      console.log("Backend Response:", res.data);
+
+    } catch (err) {
+      console.error("Connection Error (Cardano):", err);
+      setError("Failed to connect to Cardano wallet.");
+    }
+
+    setLoading(false);
+  };
+
+  // -----------------------------
+  //  CONNECT ETHEREUM (MetaMask)
+  // -----------------------------
+  const connectEthereum = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (!window.ethereum) {
+        setError("MetaMask not detected.");
+        setLoading(false);
+        return;
+      }
+
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+
+      const address = accounts[0];
+      console.log("Ethereum Wallet Address:", address);
+      setWalletAddress(address);
+
+      const res = await linkWalletAddress(address);
+      console.log("Backend Response:", res.data);
+
+    } catch (err) {
+      console.error("Connection Error (ETH):", err);
+      setError("Failed to connect to MetaMask.");
+    }
+
+    setLoading(false);
+  };
+
+  return {
+    walletAddress,
+    loading,
+    error,
+    connectCardano,
+    connectEthereum,
+  };
+}

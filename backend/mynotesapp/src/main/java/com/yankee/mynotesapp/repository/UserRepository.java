@@ -1,5 +1,6 @@
-package com.yankee.mynotesapp.user;
+package com.yankee.mynotesapp.repository;
 
+import com.yankee.mynotesapp.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional; // Ensure this is imported
 
@@ -9,5 +10,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
 
     // NEW: Add this missing method for signup validation
-    Boolean existsByEmail(String email);
+    Boolean existsByUsername(String username);
 }

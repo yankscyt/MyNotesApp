@@ -1,19 +1,24 @@
-// backend/mynotesapp/src/main/java/com/yankee/mynotesapp/auth/AuthController.java (COMPLETE CODE)
-
 package com.yankee.mynotesapp.auth;
 
-import com.yankee.mynotesapp.config.JwtUtil; // IMPORT 1: JWT Utility
-import com.yankee.mynotesapp.config.CustomUserDetailsService; // IMPORT 2: User Details Service
-import com.yankee.mynotesapp.user.User;
-import com.yankee.mynotesapp.user.UserRepository;
+import com.yankee.mynotesapp.model.User;
+import com.yankee.mynotesapp.config.JwtUtil;
+import com.yankee.mynotesapp.repository.UserRepository;
+import com.yankee.mynotesapp.config.CustomUserDetailsService;
+
+import jakarta.annotation.security.PermitAll;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager; // IMPORT 3: Authentication Manager
+
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,63 +34,117 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private AuthenticationManager authenticationManager; // Inject Authentication Manager
+    private AuthenticationManager authenticationManager;
 
     @Autowired
-    private JwtUtil jwtUtil; // Inject JWT Util
+    private JwtUtil jwtUtil;
 
     @Autowired
-    private CustomUserDetailsService userDetailsService; // Inject User Details Service
+    private CustomUserDetailsService userDetailsService;
 
-    // --- 1. SIGNUP Endpoint ---
+    // ----------------------------------------------------
+    // SIGNUP (FIXED VERSION)
+    // ----------------------------------------------------
+    @PermitAll
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@RequestBody AuthRequest request) {
-        // 1. Basic validation
-        if (userRepository.existsByEmail(request.getEmail())) {
-            return new ResponseEntity<>("Email is already in use!", HttpStatus.BAD_REQUEST);
+
+        // Prevent null request
+        if (request == null) {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Invalid request payload");
+            return new ResponseEntity<>(resp, HttpStatus.BAD_REQUEST);
         }
 
-        // For simplicity, we use email as the username for login in this MVP
-        if (request.getUsername() == null || request.getUsername().isEmpty()) {
-            request.setUsername(request.getEmail());
+        // Normalize username (frontend uses “username” as email)
+        String username = request.getUsername();
+        if (username == null || username.trim().isEmpty()) {
+            username = request.getEmail();
+        }
+        if (username != null)
+            username = username.trim().toLowerCase();
+
+        // Validate username
+        if (username == null || username.isEmpty()) {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Email is required");
+            return new ResponseEntity<>(resp, HttpStatus.BAD_REQUEST);
         }
 
-        // 2. Create User Entity
-        User user = new User(
-                null,
-                request.getUsername(),
-                request.getEmail(),
-                passwordEncoder.encode(request.getPassword()), // Hash the password
-                "ROLE_USER");
+        // Validate password
+        if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Password is required");
+            return new ResponseEntity<>(resp, HttpStatus.BAD_REQUEST);
+        }
 
-        // 3. Save to database
-        userRepository.save(user);
+        // Check if username already exists
+        try {
+            if (userRepository.existsByUsername(username)) {
+                Map<String, Object> resp = new HashMap<>();
+                resp.put("message", "Email is already in use!");
+                return new ResponseEntity<>(resp, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception ex) {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Unable to validate username uniqueness");
+            resp.put("error", ex.getMessage());
+            return new ResponseEntity<>(resp, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
 
-        return new ResponseEntity<>("User registered successfully", HttpStatus.CREATED);
+        // Build user entity (set all NON NULLABLE FIELDS)
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        // walletAddress is nullable so no need to set unless provided
+
+        // Save
+        try {
+            userRepository.save(user);
+        } catch (DataIntegrityViolationException dive) {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Database constraint violation while registering user");
+            resp.put("error",
+                    dive.getMostSpecificCause() != null ? dive.getMostSpecificCause().getMessage() : dive.getMessage());
+            return new ResponseEntity<>(resp, HttpStatus.CONFLICT);
+        } catch (Exception e) {
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Failed to register user");
+            resp.put("error", e.getMessage());
+            return new ResponseEntity<>(resp, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        // OK response (frontend expects "message")
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "User registered successfully");
+
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    // --- 2. LOGIN Endpoint ---
+    // ----------------------------------------------------
+    // LOGIN
+    // ----------------------------------------------------
+    @PermitAll
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody AuthRequest request) {
+
         try {
-            // 1. Authenticate credentials using the AuthenticationManager
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()));
         } catch (Exception e) {
-            // Authentication failed
-            return new ResponseEntity<>("Invalid username or password", HttpStatus.UNAUTHORIZED);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("message", "Invalid username or password");
+            return new ResponseEntity<>(resp, HttpStatus.UNAUTHORIZED);
         }
 
-        // 2. Load UserDetails to generate token
-        final UserDetails userDetails = userDetailsService
-                .loadUserByUsername(request.getUsername());
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        String token = jwtUtil.generateToken(userDetails);
 
-        // 3. Generate JWT
-        final String token = jwtUtil.generateToken(userDetails);
-
-        // 4. Return token in a clean JSON object
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
+        response.put("message", "Login successful");
 
         return ResponseEntity.ok(response);
     }

@@ -1,17 +1,16 @@
-// frontend/src/api.js
-
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// Base URL
+const API_BASE_URL = 'http://localhost:8080';
 
 const api = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: `${API_BASE_URL}/api`,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Interceptor to attach the JWT token to every request
+// Attach token automatically
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -22,11 +21,11 @@ api.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
-// --- Authentication Service ---
+// --- AUTH SERVICE ---
 
-export const login = (username, password) => {
-    // The username parameter here is actually the user's email from the frontend form
-    return api.post('/auth/login', { username, password }) 
+// LOGIN (backend expects username + password)
+export const login = (email, password) => {
+    return api.post('/auth/login', { username: email, password })
         .then(response => {
             const token = response.data.token;
             localStorage.setItem('token', token);
@@ -34,15 +33,26 @@ export const login = (username, password) => {
         });
 };
 
+// SIGNUP (backend expects username + password)
 export const signup = (email, password) => {
-    return api.post('/auth/signup', { email, password });
+    return api.post('/auth/signup', { username: email, password })
+        .then(response => {
+            if (response.status === 201) {
+                return response.data;
+            }
+            throw new Error(response.data.message || 'Signup failed.');
+        })
+        .catch(error => {
+            throw error;
+        });
 };
 
+// Logout
 export const logout = () => {
     localStorage.removeItem('token');
 };
 
-// --- Notes Service (Requires JWT) ---
+// --- NOTES SERVICE ---
 
 export const getNotes = () => {
     return api.get('/notes');
@@ -58,6 +68,48 @@ export const updateNote = (id, title, content) => {
 
 export const deleteNote = (id) => {
     return api.delete(`/notes/${id}`);
+};
+
+
+// --- WALLET SERVICE (EVM/MetaMask) ---
+
+// ⬅️ FIX APPLIED: Correct payload key for backend DTO
+export const linkWalletAddress = (walletAddress) => {
+  const token = localStorage.getItem("token");
+
+  return api.post( // ⬅️ Changed API to 'api' object
+    "/user/link-wallet",
+    { walletAddress },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+};
+
+
+// --- CARDANO SERVICE (ADA/Blockfrost) ---
+
+// Fetches UTxOs from the backend service using the address query parameter
+export const getCardanoUTxOs = async (address) => {
+    return api.get(`/cardano/utxos?address=${address}`);
+};
+
+// ⬅️ CRITICAL FIX: NEW FUNCTION ADDED TO EXPORT LIST
+export const buildUnsignedCardanoTx = async (sender, recipient, amount) => {
+    // Backend endpoint is /api/cardano/build-unsigned-tx
+    return api.post('/cardano/build-unsigned-tx', { 
+        senderAddress: sender, 
+        recipientAddress: recipient, 
+        amountAda: amount 
+    });
+};
+
+// Submits the CBOR signed transaction hex to the backend for broadcast
+export const submitCardanoTransaction = async (signedTxHex) => {
+    // Backend expects the raw hex in a field named 'signedTxHex'
+    return api.post('/cardano/submit-tx', { signedTxHex });
 };
 
 export default api;

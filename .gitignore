@@ -1,0 +1,23 @@
+# Dependency directories
+/node_modules
+/backend/mynotesapp/target/
+
+# Logs
+*.log
+log/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Maven cache
+**/.m2/repository/
+
+# Configuration files (CRITICAL for API Key security)
+/backend/mynotesapp/src/main/resources/*.properties
+/backend/mynotesapp/src/main/resources/*.yml
+!/backend/mynotesapp/src/main/resources/application.properties
+!/backend/mynotesapp/src/main/resources/application.yml
+# NOTE: You must make sure your actual API key file is ignored, 
+# but the generic application.properties/yml file is included.

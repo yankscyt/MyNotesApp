@@ -1,5 +1,14 @@
 package com.yankee.mynotesapp.config;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import java.util.Arrays;
+
+// ⬅️ CRITICAL IMPORTS FOR CORS and Customizer
+import org.springframework.security.config.Customizer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,14 +24,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
-
-import com.yankee.mynotesapp.config.JwtAuthFilter;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
@@ -34,22 +39,42 @@ public class SecurityConfig {
     // 1. Password Encoder Bean
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // Must return a NEW instance of BCrypt
+        return new BCryptPasswordEncoder();
     }
 
-    // 2. Authentication Provider (The one that uses the encoder)
+    // 2. Authentication Provider
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        // The method call below uses the bean defined above
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
 
-    // 3. Authentication Manager (Requires the provider)
+    // 3. Authentication Manager
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    // ⬅️ CORRECT CORS CONFIGURATION SOURCE
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Allow requests from your React development server
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+
+        // Allow all necessary HTTP methods
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // Allow the required headers
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     // 4. Security Filter Chain (Defines JWT and CORS setup)
@@ -57,37 +82,15 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configure(http))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Use JWT,
-                                                                                                             // not
-                                                                                                             // sessions
-                )
-                .authorizeHttpRequests(auth -> auth
-                        // CRITICAL: Public endpoints for authentication (Signup/Login)
-                        // This path MUST be the first rule and MUST use '/**'
-                        .requestMatchers("/api/auth/**").permitAll()
-
-                        // All other requests require authentication
-                        .anyRequest().authenticated())
+                // ⬅️ CRITICAL FIX: Use Customizer to link to the CorsConfigurationSource bean
+                .cors(Customizer.withDefaults())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
-                // CRITICAL: Add the JWT Filter before the standard username/password filter
+                // CRITICAL: Add the JWT Filter
                 .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // 5. CORS Configuration
-    @Bean
-    public CorsFilter corsFilter() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-
-        config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
-        config.setAllowCredentials(true);
-
-        source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
-    }
+    // NOTE: The conflicting corsFilter() bean was removed to prevent errors.
 }

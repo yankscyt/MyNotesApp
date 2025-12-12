@@ -1,9 +1,8 @@
-// backend/mynotesapp/src/main/java/com/yankee/mynotesapp/note/NoteController.java
-
 package com.yankee.mynotesapp.note;
 
-import com.yankee.mynotesapp.user.User;
-import com.yankee.mynotesapp.user.UserRepository;
+import com.yankee.mynotesapp.model.User;
+import com.yankee.mynotesapp.repository.NoteRepository;
+import com.yankee.mynotesapp.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -37,20 +36,34 @@ public class NoteController {
         return noteRepository.findByUserId(user.getId());
     }
 
-    // POST /api/notes - Create a new note
+    // ⬅️ CRITICAL FIX: Use NoteRequest DTO for creation
     @PostMapping
-    public Note createNote(@RequestBody Note note) {
+    public Note createNote(@RequestBody NoteRequest noteRequest) {
         User user = getCurrentUser();
+
+        // 1. Create a new Note entity
+        Note note = new Note();
+
+        // 2. Map fields from the DTO
+        note.setTitle(noteRequest.getTitle());
+        note.setContent(noteRequest.getContent());
+
+        // 3. Set the authenticated User object
         note.setUser(user);
+
         return noteRepository.save(note);
     }
 
     // PUT /api/notes/{id} - Update an existing note
+    // ⬅️ OPTIONAL FIX: For PUT, you should also use a DTO if possible, but keeping
+    // NoteDetails here for consistency
     @PutMapping("/{id}")
     public ResponseEntity<Note> updateNote(@PathVariable Long id, @RequestBody Note noteDetails) {
+        User currentUser = getCurrentUser();
+
         return noteRepository.findById(id).<ResponseEntity<Note>>map(note -> {
-            // Security check: ensure note belongs to the user
-            if (!note.getUser().equals(getCurrentUser())) {
+            // Security check: ensure note belongs to the user (comparing IDs is safe)
+            if (!note.getUser().getId().equals(currentUser.getId())) {
                 return ResponseEntity.status(403).build();
             }
 
@@ -63,9 +76,11 @@ public class NoteController {
     // DELETE /api/notes/{id} - Delete a note
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteNote(@PathVariable Long id) {
+        User currentUser = getCurrentUser();
+
         return noteRepository.findById(id).<ResponseEntity<Void>>map(note -> {
-            // Security check: ensure note belongs to the user
-            if (!note.getUser().equals(getCurrentUser())) {
+            // Security check: ensure note belongs to the user (comparing IDs is safe)
+            if (!note.getUser().getId().equals(currentUser.getId())) {
                 return ResponseEntity.status(403).build();
             }
 

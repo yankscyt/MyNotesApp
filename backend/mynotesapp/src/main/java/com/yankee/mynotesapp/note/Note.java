@@ -2,7 +2,9 @@
 
 package com.yankee.mynotesapp.note;
 
-import com.yankee.mynotesapp.user.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import com.yankee.mynotesapp.model.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,5 +30,6 @@ public class Note {
     // Link Note to User
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 }

@@ -1,9 +1,10 @@
-package com.yankee.my_notes_app;
+package com.yankee.mynotesapp; // ⬅️ Corrected package name (assuming all lowercase 'mynotesapp')
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+// ⬅️ CRITICAL FIX: Explicitly point to the main application class
+@SpringBootTest(classes = MyNotesAppApplication.class)
 class MyNotesAppApplicationTests {
 
 	@Test

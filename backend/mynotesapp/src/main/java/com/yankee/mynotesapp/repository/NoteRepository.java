@@ -1,6 +1,8 @@
 // backend/mynotesapp/src/main/java/com/yankee/mynotesapp/note/NoteRepository.java
 
-package com.yankee.mynotesapp.note;
+package com.yankee.mynotesapp.repository;
+
+import com.yankee.mynotesapp.note.Note;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
